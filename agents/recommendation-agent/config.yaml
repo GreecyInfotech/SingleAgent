@@ -1,0 +1,20 @@
+name: recommendation-agent
+version: "1.0.0"
+domain: recommendations
+model: gpt-4o-mini
+temperature: 0.5
+tools:
+  - search
+  - get_user_preferences
+  - reporting
+mcp_servers:
+  - salesforce
+  - postgres
+rag:
+  enabled: true
+  collections:
+    - product_catalog
+    - user_behavior
+defaults:
+  limit: 5
+  algorithm: hybrid_collaborative_content

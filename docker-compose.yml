@@ -1,0 +1,126 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=development
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/enterprise_agents
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-change-in-production}
+      - PYTHONPATH=/app/src:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src:ro
+      - ./agents:/app/agents:ro
+      - ./orchestrator:/app/orchestrator:ro
+      - ./rag:/app/rag:ro
+      - ./mcp_servers:/app/mcp_servers:ro
+      - ./mcp-servers:/app/mcp-servers:ro
+      - ./tools:/app/tools:ro
+
+  auth-service:
+    build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 8001 --app-dir services/auth-service
+    ports:
+      - "8001:8001"
+
+  user-service:
+    build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 8002 --app-dir services/user-service
+    ports:
+      - "8002:8002"
+
+  audit-service:
+    build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 8003 --app-dir services/audit-service
+    ports:
+      - "8003:8003"
+
+  notification-service:
+    build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 8004 --app-dir services/notification-service
+    ports:
+      - "8004:8004"
+
+  gateway-service:
+    build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 8005 --app-dir services/gateway-service
+    ports:
+      - "8005:8005"
+
+  kong:
+    image: kong:3.6
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_LISTEN: "0.0.0.0:8080"
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./api-gateway/kong/kong.yml:/kong/kong.yml:ro
+    depends_on:
+      - api
+      - auth-service
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: enterprise_agents
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+
+  loki:
+    image: grafana/loki:3.0.0
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./observability/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+    command: -config.file=/etc/loki/local-config.yaml
+
+volumes:
+  postgres_data:
+  redis_data:

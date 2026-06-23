@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eap-config
+data:
+  APP_ENV: production
+  LOG_LEVEL: INFO
+  OPENAI_MODEL: gpt-4o-mini
+  API_V1_PREFIX: /api/v1
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: eap-secrets
+type: Opaque
+stringData:
+  DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/enterprise_agents
+  REDIS_URL: redis://redis:6379/0
+  SECRET_KEY: change-me-in-production
+  OPENAI_API_KEY: ""
