@@ -1,6 +1,6 @@
-# Enterprise Agent Platform
+# SingleAgent — Enterprise Agent Platform
 
-Production-ready monorepo for enterprise AI agent orchestration.
+Single agent design and development. Production-ready monorepo for enterprise AI agent orchestration.
 
 ## Monorepo Structure
 
