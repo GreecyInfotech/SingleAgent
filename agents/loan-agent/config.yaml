@@ -1,0 +1,22 @@
+name: loan-agent
+version: "1.0.0"
+domain: lending
+model: gpt-4o-mini
+temperature: 0.3
+tools:
+  - calculate_dti
+  - check_credit_score
+  - document_parser
+  - pdf
+mcp_servers:
+  - oracle
+  - postgres
+  - sap
+rag:
+  enabled: true
+  collections:
+    - lending_policies
+    - regulatory_compliance
+limits:
+  max_auto_approve: 50000
+  max_dti: 0.43

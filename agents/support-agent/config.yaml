@@ -1,0 +1,21 @@
+name: support-agent
+version: "1.0.0"
+domain: support
+model: gpt-4o-mini
+temperature: 0.6
+tools:
+  - search
+  - email
+  - document_parser
+mcp_servers:
+  - jira
+  - confluence
+  - github
+rag:
+  enabled: true
+  collections:
+    - support_kb
+    - runbooks
+escalation:
+  confidence_threshold: 0.6
+  default_priority: medium

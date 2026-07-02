@@ -1,0 +1,16 @@
+name: fraud-agent
+version: "1.0.0"
+domain: fraud
+model: gpt-4o-mini
+temperature: 0.1
+tools:
+  - search
+  - reporting
+  - get_transaction_history
+mcp_servers:
+  - postgres
+  - oracle
+thresholds:
+  alert: 0.75
+  block: 0.90
+  step_up_auth: 0.50

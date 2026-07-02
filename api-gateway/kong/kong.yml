@@ -1,0 +1,56 @@
+_format_version: "3.0"
+
+services:
+  - name: enterprise-agent-api
+    url: http://api:8000
+    routes:
+      - name: agents-api
+        paths:
+          - /api/v1/agents
+          - /api/v1/conversations
+          - /api/v1/tools
+        strip_path: false
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 100
+              policy: local
+          - name: cors
+            config:
+              origins:
+                - "*"
+              methods:
+                - GET
+                - POST
+                - PUT
+                - PATCH
+                - DELETE
+
+  - name: auth-service
+    url: http://auth-service:8001
+    routes:
+      - name: auth-routes
+        paths:
+          - /auth
+        strip_path: false
+
+  - name: gateway-service
+    url: http://gateway-service:8005
+    routes:
+      - name: gateway-routes
+        paths:
+          - /gateway
+        strip_path: false
+
+plugins:
+  - name: prometheus
+    config:
+      per_consumer: true
+      status_code_metrics: true
+      latency_metrics: true
+
+  - name: request-transformer
+    config:
+      add:
+        headers:
+          - "X-Gateway: kong"

@@ -1,0 +1,17 @@
+name: customer-agent
+version: "1.0.0"
+domain: customer
+model: gpt-4o-mini
+temperature: 0.5
+tools:
+  - search
+  - get_customer_profile
+  - get_interaction_history
+mcp_servers:
+  - salesforce
+  - postgres
+rag:
+  enabled: true
+  collections:
+    - customer_policies
+    - product_catalog

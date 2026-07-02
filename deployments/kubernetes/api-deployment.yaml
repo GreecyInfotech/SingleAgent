@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: enterprise-agent-api
+  labels:
+    app: enterprise-agent-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: enterprise-agent-api
+  template:
+    metadata:
+      labels:
+        app: enterprise-agent-api
+    spec:
+      containers:
+        - name: api
+          image: enterprise-agent-platform:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: eap-secrets
+            - configMapRef:
+                name: eap-config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /api/v1/live
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/v1/ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: enterprise-agent-api
+spec:
+  selector:
+    app: enterprise-agent-api
+  ports:
+    - port: 80
+      targetPort: 8000
+  type: ClusterIP

@@ -1,0 +1,64 @@
+name: Enterprise Platform CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: enterprise_agents_test
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: ruff check src agents orchestrator rag mcp_servers tools tests
+      - run: mypy src --ignore-missing-imports
+        continue-on-error: true
+      - run: pytest tests/ -v --cov=enterprise_agent_platform
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/enterprise_agents_test
+          SECRET_KEY: test-secret-key-at-least-32-chars-long
+          APP_ENV: testing
+
+  build-images:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [api, auth-service, user-service]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: enterprise-agent-platform:${{ matrix.service }}-${{ github.sha }}
+
+  sonar:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

@@ -1,0 +1,45 @@
+replicaCount: 3
+
+image:
+  repository: enterprise-agent-platform
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: agents.enterprise.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+postgresql:
+  enabled: true
+  auth:
+    database: enterprise_agents
+
+redis:
+  enabled: true
+
+env:
+  APP_ENV: production
+  LOG_LEVEL: INFO
+
+secrets:
+  databaseUrl: postgresql+asyncpg://postgres:postgres@postgresql:5432/enterprise_agents
+  redisUrl: redis://redis:6379/0
+  secretKey: change-me-in-production-min-32-chars
+  openaiApiKey: ""
