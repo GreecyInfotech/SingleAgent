@@ -1,0 +1,23 @@
+image:
+  repository: ghcr.io/example/production-ai-app
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  className: nginx
+  host: production-ai-app.local
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+replicaCount: 2

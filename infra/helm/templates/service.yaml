@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: production-ai-app
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: production-ai-app
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 8000
