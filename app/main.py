@@ -17,16 +17,21 @@ logger = structlog.get_logger()
 
 app = FastAPI(title=settings.app_name, version="0.1.0")
 
+_SKIP_METRICS_PATHS = frozenset({"/metrics"})
+
 
 @app.middleware("http")
 async def telemetry_middleware(request: Request, call_next):
     start = time.perf_counter()
     response = await call_next(request)
-    elapsed = time.perf_counter() - start
-    path = request.url.path
-    method = request.method
-    REQUESTS_TOTAL.labels(path=path, method=method, status=str(response.status_code)).inc()
-    LATENCY_SECONDS.labels(path=path, method=method).observe(elapsed)
+    if request.url.path not in _SKIP_METRICS_PATHS:
+        elapsed = time.perf_counter() - start
+        REQUESTS_TOTAL.labels(
+            path=request.url.path,
+            method=request.method,
+            status=str(response.status_code),
+        ).inc()
+        LATENCY_SECONDS.labels(path=request.url.path, method=request.method).observe(elapsed)
     return response
 
 

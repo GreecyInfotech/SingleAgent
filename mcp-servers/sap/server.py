@@ -1,37 +1,40 @@
 from typing import Any
 
-from mcp_servers.shared.base_server import MCPServerBase
+from mcp_servers.shared.base_server import DeclarativeMCPServer
 
 
-class SAPMCPServer(MCPServerBase):
+class SAPMCPServer(DeclarativeMCPServer):
     name = "sap"
     version = "1.0.0"
-
-    async def list_tools(self) -> list[dict[str, Any]]:
-        return [
-            {
-                "name": "get_material",
-                "description": "Get SAP material master data",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {"material_id": {"type": "string"}},
-                    "required": ["material_id"],
-                },
+    TOOL_DEFINITIONS = [
+        {
+            "name": "get_material",
+            "description": "Get SAP material master data",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"material_id": {"type": "string"}},
+                "required": ["material_id"],
             },
-            {
-                "name": "get_purchase_order",
-                "description": "Get purchase order details",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {"po_number": {"type": "string"}},
-                    "required": ["po_number"],
-                },
+        },
+        {
+            "name": "get_purchase_order",
+            "description": "Get purchase order details",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"po_number": {"type": "string"}},
+                "required": ["po_number"],
             },
-        ]
+        },
+    ]
 
-    async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
-        if name == "get_material":
-            return {"MATNR": arguments["material_id"], "MAKTX": "Enterprise Widget", "MEINS": "EA"}
-        if name == "get_purchase_order":
-            return {"EBELN": arguments["po_number"], "STATUS": "RELEASED", "NETWR": 15000.00}
-        raise ValueError(f"Unknown tool: {name}")
+    def _build_tool_handlers(self):
+        return {
+            "get_material": self._get_material,
+            "get_purchase_order": self._get_purchase_order,
+        }
+
+    async def _get_material(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        return {"MATNR": arguments["material_id"], "MAKTX": "Enterprise Widget", "MEINS": "EA"}
+
+    async def _get_purchase_order(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        return {"EBELN": arguments["po_number"], "STATUS": "RELEASED", "NETWR": 15000.00}

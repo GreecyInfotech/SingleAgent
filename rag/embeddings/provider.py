@@ -24,8 +24,8 @@ class EmbeddingProvider(ABC):
 
 
 class OpenAIEmbeddingProvider(EmbeddingProvider):
-    def __init__(self, api_key: str, model: str = "text-embedding-3-small") -> None:
-        self._api_key = api_key or get_settings().openai_api_key
+    def __init__(self, api_key: str | None = None, model: str = "text-embedding-3-small") -> None:
+        self._api_key = get_settings().openai_api_key if api_key is None else api_key
         self._model = model
         self._dimensions = 1536
 

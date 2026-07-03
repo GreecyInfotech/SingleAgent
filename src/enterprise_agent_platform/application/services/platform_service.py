@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 from uuid import UUID
 
@@ -47,8 +49,8 @@ class PlatformService:
         for name in list_mcp_servers():
             server = get_mcp_server(name)
             tools = await server.list_tools()
-            servers.append({**server.get_server_info(), "tools": [t["name"] for t in tools]})
-        return {"servers": servers}
+            servers.append({**server.get_server_info(), "tools": [tool["name"] for tool in tools]})
+        return {"servers": servers, "count": len(servers)}
 
     async def call_mcp_tool(
         self, server_name: str, tool_name: str, arguments: dict[str, Any]

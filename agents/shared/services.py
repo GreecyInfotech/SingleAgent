@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from typing import Any
 
@@ -5,21 +7,29 @@ from typing import Any
 class AgentServiceBridge:
     """Bridge domain agents to MCP servers, RAG, and platform tools."""
 
+    def __init__(self) -> None:
+        self._rag_bundle: tuple[Any, Any] | None = None
+
     async def call_mcp(self, server_name: str, tool_name: str, arguments: dict[str, Any]) -> Any:
         from mcp_servers import get_mcp_server
 
         server = get_mcp_server(server_name)
         return await server.call_tool(tool_name, arguments)
 
+    def _get_rag_bundle(self) -> tuple[Any, Any]:
+        if self._rag_bundle is None:
+            from rag.embeddings.provider import OpenAIEmbeddingProvider
+            from rag.vector_db.client import VectorDBClient
+
+            provider = OpenAIEmbeddingProvider()
+            db = VectorDBClient("enterprise-kb")
+            self._rag_bundle = (provider, db)
+        return self._rag_bundle
+
     async def search_knowledge(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
-        from rag.embeddings.provider import OpenAIEmbeddingProvider
         from rag.retrievers.hybrid import HybridRetriever
-        from rag.vector_db.client import VectorDBClient
 
-        from enterprise_agent_platform.core.config import get_settings
-
-        provider = OpenAIEmbeddingProvider(api_key=get_settings().openai_api_key)
-        db = VectorDBClient("enterprise-kb")
+        provider, db = self._get_rag_bundle()
         retriever = HybridRetriever(provider, db, top_k=limit, score_threshold=0.0)
         result = await retriever.retrieve(query)
         return [

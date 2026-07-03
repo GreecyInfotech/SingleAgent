@@ -1,68 +1,104 @@
-# UML Artifacts
+# End-to-End UML Artifacts
 
-This document provides core UML views for `production-ai-app` using Mermaid.
+This document provides an end-to-end architecture UML set for `production-ai-app` and aligned enterprise folders.
 
-## 1) Use Case Diagram
+## 1) System Context Diagram
 
 ```mermaid
 flowchart LR
-    User[API Consumer]
-    DevOps[DevOps/SRE]
-    Platform[Kubernetes/Infra Admin]
-    API[FastAPI Service]
+    User[Enterprise User / Client App]
+    FE[Frontend Next.js/React]
+    Gateway[Kong API Gateway]
+    API[FastAPI Platform API]
+    Orch[Orchestrator / LangGraph]
+    Agents[Domain Agents]
+    Rag[RAG Services]
+    MCP[MCP Servers]
+    DB[(Datastores)]
+    Obs[Observability Stack]
 
-    User -->|Submit chat prompt| API
-    User -->|Read answer| API
-    DevOps -->|Check health/ready| API
-    DevOps -->|Monitor metrics| API
-    Platform -->|Deploy service| API
+    User --> FE --> Gateway --> API
+    API --> Orch --> Agents
+    Orch --> Rag
+    Agents --> MCP
+    Rag --> DB
+    API --> DB
+    API --> Obs
+    Orch --> Obs
 ```
 
 ## 2) Component Diagram
 
 ```mermaid
 flowchart TD
-    A[app/main.py<br/>FastAPI Endpoints]
-    B[security/input_guard.py<br/>Input Safety]
-    C[services/router.py<br/>Route Selection]
-    D[retrieval/hybrid_search.py<br/>Context Retrieval]
-    E[agents/planner.py<br/>Response Planning]
-    F[app/schemas/chat.py<br/>API Contracts]
-    G[observability/metrics/registry.py<br/>Prometheus Metrics]
+    subgraph API Layer
+      A[app/main.py]
+      B[app/schemas/chat.py]
+      C[security/input_guard.py]
+      D[services/router.py]
+    end
 
-    A --> F
+    subgraph Intelligence Layer
+      E[agents/planner.py]
+      F[orchestrator]
+      G[rag/retrievers]
+    end
+
+    subgraph Integration Layer
+      H[mcp_servers/registry.py]
+      I[mcp-servers/*/server.py]
+    end
+
+    subgraph Platform Layer
+      J[observability]
+      K[deployments + infra]
+    end
+
     A --> B
     A --> C
-    C --> D
-    A --> E
-    A --> G
+    A --> D
+    D --> E
+    E --> F
+    F --> G
+    F --> H
+    H --> I
+    A --> J
+    K --> A
 ```
 
-## 3) Sequence Diagram (Chat Request)
+## 3) Sequence Diagram (End-to-End Request)
 
 ```mermaid
 sequenceDiagram
-    actor Client as API Consumer
-    participant API as FastAPI /api/v1/chat
-    participant Guard as InputGuard
-    participant Router as QueryRouter
-    participant Retrieval as HybridSearch
-    participant Planner as AgentPlanner
+    actor U as User
+    participant FE as Frontend
+    participant GW as API Gateway
+    participant API as FastAPI
+    participant Guard as Input Guard
+    participant Router as Service Router
+    participant Orch as Orchestrator
+    participant Rag as Retrieval Layer
+    participant MCP as MCP Registry/Server
+    participant Obs as Metrics/Logs
 
-    Client->>API: POST /api/v1/chat {message, session_id}
-    API->>Guard: is_safe_user_input(message)
+    U->>FE: Submit query
+    FE->>GW: HTTPS request
+    GW->>API: Forward /api/v1/chat
+    API->>Guard: Validate input
     alt Unsafe input
-        Guard-->>API: false
-        API-->>Client: 400 Blocked unsafe input
+        Guard-->>API: Reject
+        API-->>FE: 400 blocked response
     else Safe input
-        Guard-->>API: true
+        Guard-->>API: Safe
         API->>Router: route_query(message)
-        Router->>Retrieval: fetch context
-        Retrieval-->>Router: context
-        Router-->>API: route, context
-        API->>Planner: plan_response(route, message, context)
-        Planner-->>API: answer, confidence
-        API-->>Client: 200 ChatResponse
+        Router->>Orch: Select workflow
+        Orch->>Rag: Retrieve context
+        Orch->>MCP: Optional enterprise tool call
+        Rag-->>Orch: Context bundle
+        MCP-->>Orch: Tool output
+        Orch-->>API: Final answer + confidence
+        API->>Obs: Emit latency/request metrics
+        API-->>FE: 200 ChatResponse
     end
 ```
 
@@ -70,49 +106,62 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    subgraph ClientLayer
-        U[Client Apps]
+    subgraph Client Side
+      C1[Browser/Client]
     end
 
-    subgraph Runtime
-        LB[Ingress / Load Balancer]
-        POD[production-ai-app Pod]
-        MET[Prometheus]
+    subgraph Cluster
+      Ingress[Ingress / Kong]
+      PodAPI[API Pods]
+      PodOrch[Orchestrator Pods]
+      PodMCP[MCP Server Pods]
+      Prom[Prometheus]
+      Graf[Grafana]
     end
 
-    subgraph ConfigInfra
-        HELM[Helm Chart]
-        TF[Terraform]
-        CI[GitHub Actions CI]
+    subgraph CI_CD
+      GH[GitHub Actions]
+      Helm[Helm]
+      TF[Terraform]
     end
 
-    U --> LB --> POD
-    POD -->|/metrics| MET
-    CI --> HELM
-    CI --> TF
-    HELM --> POD
+    C1 --> Ingress --> PodAPI
+    PodAPI --> PodOrch
+    PodOrch --> PodMCP
+    PodAPI --> Prom
+    PodOrch --> Prom
+    Prom --> Graf
+    GH --> Helm
+    GH --> TF
+    Helm --> PodAPI
+    Helm --> PodOrch
+    Helm --> PodMCP
 ```
 
-## 5) Package/Folder View
+## 5) Package/Folder Dependency View
 
 ```mermaid
 flowchart LR
     APP[app]
     SERVICES[services]
     AGENTS[agents]
-    RETRIEVAL[retrieval]
-    SECURITY[security]
+    ORCH[orchestrator]
+    RAG[rag + retrieval]
+    MCPH[mcp_servers]
+    MCPI[mcp-servers]
     OBS[observability]
-    INFRA[infra]
-    TESTS[tests]
-    DOCS[docs]
+    SEC[security]
+    DEP[deployments + infra]
+    TEST[tests]
 
+    APP --> SEC
     APP --> SERVICES
-    APP --> AGENTS
-    APP --> SECURITY
-    SERVICES --> RETRIEVAL
+    SERVICES --> AGENTS
+    AGENTS --> ORCH
+    ORCH --> RAG
+    ORCH --> MCPH --> MCPI
     APP --> OBS
-    INFRA --> APP
-    TESTS --> APP
-    DOCS --> APP
+    DEP --> APP
+    TEST --> APP
+    TEST --> ORCH
 ```
